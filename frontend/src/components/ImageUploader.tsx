@@ -1,4 +1,5 @@
 import { useRef, useState, DragEvent, ChangeEvent } from 'react'
+import { IconUpload, IconX, IconImage } from '../Icons'
 
 interface Props {
   image: File | null
@@ -18,6 +19,7 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragging(false)
+    if (disabled) return
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
   }
@@ -30,32 +32,60 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
   const preview = image ? URL.createObjectURL(image) : null
 
   return (
-    <div style={styles.wrapper}>
-      <p style={styles.label}>产品参考图</p>
+    <div style={s.wrapper}>
+      <p className="label">参考图片</p>
+
       <div
         style={{
-          ...styles.dropzone,
-          ...(dragging ? styles.dropzoneDragging : {}),
-          ...(disabled ? styles.dropzoneDisabled : {}),
+          ...s.zone,
+          ...(dragging ? s.zoneDragging : {}),
+          ...(disabled ? s.zoneDisabled : {}),
+          ...(preview ? s.zoneHasImage : {}),
         }}
-        onClick={() => !disabled && inputRef.current?.click()}
+        onClick={() => !disabled && !image && inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
       >
         {preview ? (
-          <img src={preview} alt="preview" style={styles.previewImg} />
+          <>
+            <img src={preview} alt="preview" style={s.preview} />
+            {!disabled && (
+              <button
+                style={s.removeBtn}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  inputRef.current!.value = ''
+                  onImageChange(null as unknown as File)
+                }}
+                title="移除图片"
+              >
+                <IconX size={12} />
+              </button>
+            )}
+          </>
         ) : (
-          <div style={styles.placeholder}>
-            <span style={styles.uploadIcon}>📷</span>
-            <span style={styles.uploadHint}>点击或拖拽上传图片</span>
-            <span style={styles.uploadFormats}>支持 PNG / JPG / WEBP</span>
+          <div style={s.placeholder}>
+            <div style={s.iconWrap}>
+              {dragging
+                ? <IconImage size={22} style={{ color: 'var(--accent)' }} />
+                : <IconUpload size={22} style={{ color: 'var(--text-3)' }} />
+              }
+            </div>
+            <span style={s.hint}>
+              {dragging ? '松开以上传' : '点击或拖拽上传'}
+            </span>
+            <span style={s.formats}>PNG · JPG · WEBP</span>
           </div>
         )}
       </div>
+
       {image && (
-        <p style={styles.fileName}>{image.name}</p>
+        <p style={s.filename} title={image.name}>
+          {image.name}
+        </p>
       )}
+
       <input
         ref={inputRef}
         type="file"
@@ -68,65 +98,92 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   wrapper: {
     marginBottom: 24,
   },
-  label: {
-    fontSize: 13,
-    color: '#a090c0',
-    marginBottom: 8,
-    fontWeight: 500,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
-  dropzone: {
-    border: '2px dashed #3d2f5a',
-    borderRadius: 12,
-    height: 180,
+  zone: {
+    position: 'relative',
+    border: '1px dashed var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    height: 164,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
     overflow: 'hidden',
     transition: 'border-color 0.2s, background 0.2s',
-    background: '#1a1030',
+    background: 'var(--surface)',
   },
-  dropzoneDragging: {
-    borderColor: '#f0a040',
-    background: '#221540',
+  zoneDragging: {
+    borderColor: 'var(--accent)',
+    borderStyle: 'solid',
+    background: 'var(--accent-dim)',
   },
-  dropzoneDisabled: {
+  zoneDisabled: {
     cursor: 'not-allowed',
-    opacity: 0.6,
+    opacity: 0.55,
+  },
+  zoneHasImage: {
+    cursor: 'default',
+    borderStyle: 'solid',
+    borderColor: 'var(--border)',
+  },
+  preview: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+    display: 'block',
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,0.7)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: 'var(--text-2)',
+    transition: 'background 0.15s, color 0.15s',
   },
   placeholder: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  uploadIcon: {
-    fontSize: 36,
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 'var(--radius)',
+    background: 'var(--elevated)',
+    border: '1px solid var(--border)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-  uploadHint: {
-    fontSize: 14,
-    color: '#8070a0',
+  hint: {
+    fontSize: 13,
+    color: 'var(--text-2)',
+    fontWeight: 500,
   },
-  uploadFormats: {
+  formats: {
     fontSize: 11,
-    color: '#5a4a70',
+    color: 'var(--text-3)',
+    fontFamily: "'JetBrains Mono', monospace",
+    letterSpacing: '0.04em',
   },
-  previewImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
-  },
-  fileName: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#7060a0',
-    textAlign: 'center',
+  filename: {
+    marginTop: 7,
+    fontSize: 11,
+    color: 'var(--text-3)',
+    fontFamily: "'JetBrains Mono', monospace",
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',

@@ -1,15 +1,18 @@
 interface SizeOption {
   value: string
   label: string
-  desc: string
+  ratio: string
+  w: number
+  h: number
 }
 
+// w/h are relative visual dimensions (max dim = 28px)
 const SIZE_OPTIONS: SizeOption[] = [
-  { value: '1280x720', label: '1280 × 720', desc: '横屏 16:9' },
-  { value: '720x1280', label: '720 × 1280', desc: '竖屏 9:16' },
-  { value: '1792x1024', label: '1792 × 1024', desc: '宽屏 7:4' },
-  { value: '1024x1792', label: '1024 × 1792', desc: '竖宽屏 4:7' },
-  { value: '1024x1024', label: '1024 × 1024', desc: '正方形 1:1' },
+  { value: '1280x720',  label: '1280 × 720',  ratio: '16 : 9', w: 28, h: 16 },
+  { value: '720x1280',  label: '720 × 1280',  ratio: '9 : 16', w: 16, h: 28 },
+  { value: '1792x1024', label: '1792 × 1024', ratio: '7 : 4',  w: 28, h: 16 },
+  { value: '1024x1792', label: '1024 × 1792', ratio: '4 : 7',  w: 16, h: 28 },
+  { value: '1024x1024', label: '1024 × 1024', ratio: '1 : 1',  w: 22, h: 22 },
 ]
 
 interface Props {
@@ -20,75 +23,104 @@ interface Props {
 
 export default function SizeSelector({ size, onSizeChange, disabled }: Props) {
   return (
-    <div style={styles.wrapper}>
-      <p style={styles.label}>画面比例</p>
-      <div style={styles.grid}>
-        {SIZE_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            style={{
-              ...styles.option,
-              ...(size === opt.value ? styles.optionActive : {}),
-              ...(disabled ? styles.optionDisabled : {}),
-            }}
-            onClick={() => !disabled && onSizeChange(opt.value)}
-            disabled={disabled}
-          >
-            <span style={styles.optionValue}>{opt.label}</span>
-            <span style={styles.optionDesc}>{opt.desc}</span>
-          </button>
-        ))}
+    <div style={s.wrapper}>
+      <p className="label">画面比例</p>
+      <div style={s.list}>
+        {SIZE_OPTIONS.map((opt) => {
+          const active = size === opt.value
+          return (
+            <button
+              key={opt.value}
+              style={{
+                ...s.option,
+                ...(active ? s.optionActive : {}),
+                ...(disabled ? s.optionDisabled : {}),
+              }}
+              onClick={() => !disabled && onSizeChange(opt.value)}
+              disabled={disabled}
+            >
+              {/* visual ratio rect */}
+              <div style={s.ratioWrap}>
+                <div
+                  style={{
+                    ...s.ratioRect,
+                    width: opt.w,
+                    height: opt.h,
+                    borderColor: active ? 'var(--accent)' : 'var(--border-strong, #3f3f46)',
+                    background: active ? 'var(--accent-dim)' : 'var(--elevated)',
+                  }}
+                />
+              </div>
+              <div style={s.info}>
+                <span style={s.ratio}>{opt.ratio}</span>
+                <span style={s.dims}>{opt.label}</span>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   wrapper: {
     marginBottom: 24,
   },
-  label: {
-    fontSize: 13,
-    color: '#a090c0',
-    marginBottom: 10,
-    fontWeight: 500,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 8,
-  },
-  option: {
-    background: '#1a1030',
-    border: '1.5px solid #3d2f5a',
-    borderRadius: 8,
-    padding: '10px 12px',
-    cursor: 'pointer',
+  list: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 2,
-    transition: 'border-color 0.15s, background 0.15s',
+    gap: 4,
+  },
+  option: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: 'transparent',
+    border: '1px solid transparent',
+    borderRadius: 'var(--radius)',
+    padding: '8px 10px',
+    cursor: 'pointer',
+    transition: 'background 0.15s, border-color 0.15s',
     textAlign: 'left',
+    width: '100%',
   },
   optionActive: {
-    borderColor: '#f0a040',
-    background: '#2a1a40',
+    background: 'var(--elevated)',
+    borderColor: 'var(--border)',
   },
   optionDisabled: {
     cursor: 'not-allowed',
-    opacity: 0.5,
+    opacity: 0.4,
   },
-  optionValue: {
+  ratioWrap: {
+    width: 36,
+    height: 36,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  ratioRect: {
+    borderRadius: 2,
+    border: '1.5px solid',
+    transition: 'border-color 0.15s, background 0.15s',
+  },
+  info: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 1,
+  },
+  ratio: {
     fontSize: 13,
-    color: '#d0c0e8',
     fontWeight: 600,
-    fontFamily: 'monospace',
+    color: 'var(--text-1)',
+    fontFamily: "'JetBrains Mono', monospace",
+    letterSpacing: '0.02em',
   },
-  optionDesc: {
+  dims: {
     fontSize: 11,
-    color: '#7060a0',
+    color: 'var(--text-3)',
+    fontFamily: "'JetBrains Mono', monospace",
   },
 }

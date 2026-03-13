@@ -4,6 +4,7 @@ import ImageUploader from './components/ImageUploader'
 import SizeSelector from './components/SizeSelector'
 import ProgressTracker from './components/ProgressTracker'
 import PreviewPanel from './components/PreviewPanel'
+import { IconFilm, IconPlay, IconReset, IconSpinner, IconWarning } from './Icons'
 import { TaskStatus } from './types'
 
 export default function App() {
@@ -49,7 +50,7 @@ export default function App() {
             setIsGenerating(false)
           }
         } catch {
-          // 网络抖动，继续轮询
+          // network blip — keep polling
         }
       }, 3000)
     } catch (err: unknown) {
@@ -70,99 +71,84 @@ export default function App() {
     setError(null)
   }
 
-  const showPreview =
-    taskId !== null &&
-    taskStatus !== null &&
-    taskStatus.has_merged
+  const showPreview = taskId !== null && taskStatus !== null && taskStatus.has_merged
+  const isDone = taskStatus?.status === 'done'
+  const hasError = taskStatus?.status === 'error'
 
   return (
-    <div style={styles.app}>
-      {/* ── Header ── */}
-      <header style={styles.header}>
-        <div style={styles.headerInner}>
-          <span style={styles.logo}>🎬</span>
-          <div>
-            <h1 style={styles.title}>Video6s²Promo</h1>
-            <p style={styles.subtitle}>上传参考图 · 自动生成 5 段 6s 视频 · 实时合并预览</p>
+    <div style={s.root}>
+      {/* ── NAV ── */}
+      <header style={s.nav}>
+        <div style={s.navInner}>
+          <div style={s.brand}>
+            <IconFilm size={18} style={{ color: 'var(--accent)' }} />
+            <span style={s.brandName}>Video6s²Promo</span>
           </div>
+          {isDone && (
+            <span style={s.doneBadge}>
+              <span style={s.doneDot} />
+              完成
+            </span>
+          )}
+          {isGenerating && (
+            <span style={s.generatingBadge}>
+              <IconSpinner size={12} />
+              生成中 {taskStatus?.current_step ?? 0} / 5
+            </span>
+          )}
         </div>
       </header>
 
-      {/* ── Main ── */}
-      <main style={styles.main}>
-        {/* 左侧控制区 */}
-        <aside style={styles.sidebar}>
-          <ImageUploader
-            image={image}
-            onImageChange={setImage}
-            disabled={isGenerating}
-          />
-          <SizeSelector
-            size={size}
-            onSizeChange={setSize}
-            disabled={isGenerating}
-          />
+      {/* ── LAYOUT ── */}
+      <main style={s.main}>
+        {/* Sidebar */}
+        <aside style={s.sidebar}>
+          <ImageUploader image={image} onImageChange={setImage} disabled={isGenerating} />
+          <SizeSelector size={size} onSizeChange={setSize} disabled={isGenerating} />
 
-          {error && (
-            <div style={styles.errorBox}>
-              <strong>错误：</strong>{error}
-            </div>
-          )}
+          <div style={s.actions}>
+            {error && (
+              <div style={s.errorBox}>
+                <IconWarning size={13} style={{ color: 'var(--error)', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, lineHeight: 1.5, wordBreak: 'break-all' }}>{error}</span>
+              </div>
+            )}
 
-          <button
-            style={{
-              ...styles.generateBtn,
-              ...(isGenerating || !image ? styles.generateBtnDisabled : {}),
-            }}
-            onClick={handleGenerate}
-            disabled={isGenerating || !image}
-          >
-            {isGenerating ? (
-              <span style={styles.btnContent}>
-                <span style={styles.spinner}>⟳</span> 生成中…
-              </span>
-            ) : '▶ 开始生成'}
-          </button>
-
-          {(taskStatus?.status === 'done' || taskStatus?.status === 'error') && (
-            <button style={styles.resetBtn} onClick={handleReset}>
-              重新开始
+            <button
+              className="btn-primary"
+              onClick={handleGenerate}
+              disabled={isGenerating || !image}
+            >
+              {isGenerating
+                ? <><IconSpinner size={15} /> 生成中…</>
+                : <><IconPlay size={14} /> 开始生成</>
+              }
             </button>
-          )}
+
+            {(isDone || hasError) && (
+              <button className="btn-ghost" onClick={handleReset}>
+                <IconReset size={13} /> 重新开始
+              </button>
+            )}
+          </div>
         </aside>
 
-        {/* 右侧结果区 */}
-        <section style={styles.content}>
+        {/* Content */}
+        <section style={s.content}>
           {(isGenerating || taskStatus) ? (
-            <>
+            <div style={s.activeArea}>
               <ProgressTracker status={taskStatus} isGenerating={isGenerating} />
               {showPreview && (
                 <PreviewPanel
                   taskId={taskId!}
                   completedVideos={taskStatus!.completed_videos}
                   hasMerged={taskStatus!.has_merged}
-                  isDone={taskStatus!.status === 'done'}
+                  isDone={isDone}
                 />
               )}
-            </>
-          ) : (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>🌙</div>
-              <p style={styles.emptyTitle}>准备好了</p>
-              <p style={styles.emptyDesc}>
-                上传参考图片，选择尺寸后<br />点击「开始生成」即可
-              </p>
-              <div style={styles.emptySteps}>
-                {['上传产品图', '选择比例', '一键生成 5 段视频', '预览 & 下载'].map(
-                  (s, i) => (
-                    <div key={i} style={styles.emptyStep}>
-                      <span style={styles.emptyStepNum}>{i + 1}</span>
-                      <span>{s}</span>
-                    </div>
-                  ),
-                )}
-              </div>
             </div>
+          ) : (
+            <EmptyState />
           )}
         </section>
       </main>
@@ -170,165 +156,189 @@ export default function App() {
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  app: {
-    minHeight: '100vh',
+function EmptyState() {
+  const steps = [
+    { n: '01', text: '上传产品或场景参考图' },
+    { n: '02', text: '选择画面比例' },
+    { n: '03', text: '一键生成 5 段 6s 视频' },
+    { n: '04', text: '实时预览合并成片' },
+  ]
+  return (
+    <div style={s.empty}>
+      <div style={s.emptyHeadline}>
+        <p style={s.emptySubhead}>六秒一帧，串联成片</p>
+        <h2 style={s.emptyH2}>五段自动生成<br />合并为 30 秒宣传片</h2>
+      </div>
+
+      <div style={s.emptySteps}>
+        {steps.map((step, i) => (
+          <div
+            key={step.n}
+            className="fade-up"
+            style={{ ...s.emptyStep, animationDelay: `${i * 60}ms` }}
+          >
+            <span style={s.emptyN}>{step.n}</span>
+            <span style={s.emptyText}>{step.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const s: Record<string, React.CSSProperties> = {
+  root: {
+    minHeight: '100dvh',
     display: 'flex',
     flexDirection: 'column',
+    background: 'var(--bg)',
   },
-  header: {
-    borderBottom: '1px solid #1e1535',
-    padding: '16px 32px',
-    background: 'rgba(12,9,22,0.95)',
-    backdropFilter: 'blur(8px)',
+  nav: {
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--bg)',
     position: 'sticky',
     top: 0,
-    zIndex: 10,
+    zIndex: 50,
   },
-  headerInner: {
+  navInner: {
+    maxWidth: 1320,
+    margin: '0 auto',
+    padding: '0 32px',
+    height: 56,
     display: 'flex',
     alignItems: 'center',
     gap: 16,
-    maxWidth: 1200,
-    margin: '0 auto',
   },
-  logo: {
-    fontSize: 36,
+  brand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 9,
+    flex: 1,
   },
-  title: {
-    fontSize: 20,
+  brandName: {
+    fontSize: 15,
     fontWeight: 700,
-    color: '#f0e8ff',
-    letterSpacing: '0.02em',
+    letterSpacing: '-0.02em',
+    color: 'var(--text-1)',
   },
-  subtitle: {
+  doneBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '3px 10px',
+    borderRadius: 99,
+    background: 'var(--success-dim)',
+    border: '1px solid rgba(16,185,129,0.2)',
     fontSize: 12,
-    color: '#6050a0',
-    marginTop: 2,
+    fontWeight: 600,
+    color: 'var(--success)',
+  },
+  doneDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: 'var(--success)',
+  },
+  generatingBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '3px 10px',
+    borderRadius: 99,
+    background: 'var(--accent-dim)',
+    border: '1px solid rgba(245,158,11,0.2)',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--accent)',
   },
   main: {
     flex: 1,
-    display: 'grid',
-    gridTemplateColumns: '300px 1fr',
-    gap: 24,
-    padding: '28px 32px',
-    maxWidth: 1200,
+    maxWidth: 1320,
     margin: '0 auto',
     width: '100%',
-    alignItems: 'flex-start',
+    padding: '32px 32px',
+    display: 'grid',
+    gridTemplateColumns: '268px 1fr',
+    gap: 32,
+    alignItems: 'start',
   },
   sidebar: {
     position: 'sticky',
-    top: 86,
+    top: 88,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0,
+  },
+  actions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 4,
   },
   content: {
     minWidth: 0,
   },
-  generateBtn: {
-    width: '100%',
-    padding: '13px 0',
-    background: 'linear-gradient(135deg, #e8860a 0%, #f0a040 100%)',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 15,
-    fontWeight: 700,
-    color: '#fff',
-    cursor: 'pointer',
-    transition: 'opacity 0.15s, transform 0.1s',
-    letterSpacing: '0.04em',
-    marginBottom: 10,
-  },
-  generateBtnDisabled: {
-    opacity: 0.45,
-    cursor: 'not-allowed',
-    transform: 'none',
-  },
-  btnContent: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  spinner: {
-    display: 'inline-block',
-    animation: 'spin 1s linear infinite',
-  },
-  resetBtn: {
-    width: '100%',
-    padding: '10px 0',
-    background: 'transparent',
-    border: '1.5px solid #3d2f5a',
-    borderRadius: 10,
-    fontSize: 13,
-    color: '#8070a0',
-    cursor: 'pointer',
-    transition: 'border-color 0.15s, color 0.15s',
-    marginBottom: 10,
-  },
-  errorBox: {
-    background: '#2a0e0e',
-    border: '1px solid #7f1d1d',
-    borderRadius: 8,
-    padding: '10px 14px',
-    fontSize: 13,
-    color: '#fca5a5',
-    marginBottom: 14,
-    wordBreak: 'break-all',
-  },
-  emptyState: {
+  activeArea: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 400,
-    gap: 12,
-    color: '#5a4a70',
+    gap: 16,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 8,
+  errorBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    background: 'var(--error-dim)',
+    border: '1px solid rgba(239,68,68,0.2)',
+    borderRadius: 'var(--radius)',
+    padding: '10px 12px',
+    color: 'var(--error)',
+    marginBottom: 4,
   },
-  emptyTitle: {
-    fontSize: 20,
+  empty: {
+    padding: '48px 0 0',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 48,
+  },
+  emptyHeadline: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  emptySubhead: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'var(--accent)',
+    letterSpacing: '0.04em',
+  },
+  emptyH2: {
+    fontSize: 38,
     fontWeight: 700,
-    color: '#8070a0',
-  },
-  emptyDesc: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 1.7,
-    color: '#5a4a70',
+    lineHeight: 1.15,
+    letterSpacing: '-0.03em',
+    color: 'var(--text-1)',
   },
   emptySteps: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
-    marginTop: 16,
-    width: '100%',
-    maxWidth: 280,
+    borderTop: '1px solid var(--border)',
   },
   emptyStep: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    fontSize: 13,
-    color: '#6050a0',
-    background: '#140e24',
-    border: '1px solid #2a1e42',
-    borderRadius: 8,
-    padding: '8px 14px',
+    alignItems: 'baseline',
+    gap: 20,
+    padding: '16px 0',
+    borderBottom: '1px solid var(--border)',
   },
-  emptyStepNum: {
-    width: 22,
-    height: 22,
-    borderRadius: '50%',
-    background: '#2a1e42',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#8070a0',
-    flexShrink: 0,
+  emptyN: {
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--text-3)',
+    minWidth: 24,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: 'var(--text-2)',
   },
 }

@@ -1,46 +1,153 @@
-*,
-*::before,
-*::after {
+:root {
+  --bg:           #09090b;
+  --surface:      #111113;
+  --elevated:     #1c1c1f;
+  --border:       #27272a;
+  --border-dim:   #1c1c1f;
+  --border-accent:rgba(245,158,11,0.45);
+  --text-1:       #fafafa;
+  --text-2:       #a1a1aa;
+  --text-3:       #52525b;
+  --accent:       #f59e0b;
+  --accent-dim:   rgba(245,158,11,0.10);
+  --accent-glow:  rgba(245,158,11,0.20);
+  --success:      #10b981;
+  --success-dim:  rgba(16,185,129,0.10);
+  --error:        #ef4444;
+  --error-dim:    rgba(239,68,68,0.10);
+  --radius-sm:    6px;
+  --radius:       10px;
+  --radius-lg:    14px;
+  --ease-out:     cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html { color-scheme: dark; }
+
 body {
-  background: #0c0916;
-  color: #e0d4f5;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
-  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: 'Outfit', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
   font-family: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+/* ── Utility classes ── */
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 10px;
 }
 
-::-webkit-scrollbar-track {
-  background: #140e24;
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  background: var(--accent);
+  color: #451a03;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: opacity 0.2s var(--ease-out), transform 0.12s var(--ease-out),
+              box-shadow 0.2s var(--ease-out);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset;
 }
+.btn-primary:hover:not(:disabled) { opacity: 0.92; box-shadow: 0 0 0 3px var(--accent-glow), 0 1px 0 rgba(255,255,255,0.12) inset; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98) translateY(1px); opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
 
-::-webkit-scrollbar-thumb {
-  background: #3d2f5a;
-  border-radius: 3px;
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 0;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
+.btn-ghost:hover { border-color: #3f3f46; color: var(--text-1); background: var(--elevated); }
+.btn-ghost:active { transform: scale(0.99); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #5a4080;
+.btn-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
 }
+.btn-inline:hover { border-color: #3f3f46; color: var(--text-1); }
 
+/* ── Animations ── */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-
-@keyframes pulse {
-  0%   { transform: scale(1);   opacity: 0.8; }
-  100% { transform: scale(1.8); opacity: 0; }
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.spin { animation: spin 0.9s linear infinite; }
+
+.fade-up {
+  animation: fade-up 0.4s var(--ease-out) both;
+}
+
+/* stagger helper — set --delay on the element */
+[data-stagger] { animation: fade-up 0.4s var(--ease-out) both; animation-delay: var(--delay, 0ms); }

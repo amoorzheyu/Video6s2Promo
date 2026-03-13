@@ -1,4 +1,5 @@
 import { TaskStatus } from '../types'
+import { IconCheck, IconSpinner, IconX } from '../Icons'
 
 interface Props {
   status: TaskStatus | null
@@ -6,224 +7,241 @@ interface Props {
 }
 
 const STEP_LABELS = [
-  '开场：暖光亮起',
-  '近景：光线折射',
-  '俯视：安全感光圈',
-  '互动：亲子场景',
-  '收尾：星空映衬',
+  '开场暖光',
+  '光线折射',
+  '俯视光圈',
+  '亲子互动',
+  '星空收尾',
 ]
 
 type StepState = 'done' | 'active' | 'waiting' | 'error'
 
-function getStepState(
-  stepIndex: number,
-  status: TaskStatus | null,
-  isGenerating: boolean,
-): StepState {
+function getStepState(i: number, status: TaskStatus | null, isGenerating: boolean): StepState {
   if (!status && !isGenerating) return 'waiting'
   if (status?.status === 'error') {
-    if (stepIndex < (status.current_step - 1)) return 'done'
-    if (stepIndex === (status.current_step - 1)) return 'error'
+    if (i < status.current_step - 1) return 'done'
+    if (i === status.current_step - 1) return 'error'
     return 'waiting'
   }
-  const completed = status?.completed_videos ?? 0
-  if (stepIndex < completed) return 'done'
-  if (stepIndex === (status?.current_step ?? 0) - 1 && isGenerating) return 'active'
+  const done = status?.completed_videos ?? 0
+  if (i < done) return 'done'
+  if (i === (status?.current_step ?? 0) - 1 && isGenerating) return 'active'
   return 'waiting'
 }
 
-const STATE_COLORS: Record<StepState, string> = {
-  done: '#34d399',
-  active: '#f0a040',
-  waiting: '#3d2f5a',
-  error: '#f87171',
-}
+function StepDot({ state }: { state: StepState }) {
+  const bg = {
+    done:    'var(--success)',
+    active:  'var(--accent)',
+    waiting: 'var(--elevated)',
+    error:   'var(--error)',
+  }[state]
+  const border = {
+    done:    'transparent',
+    active:  'var(--accent)',
+    waiting: 'var(--border)',
+    error:   'transparent',
+  }[state]
 
-const STATE_ICONS: Record<StepState, string> = {
-  done: '✓',
-  active: '⟳',
-  waiting: '○',
-  error: '✗',
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div style={{ ...dot, background: bg, border: `1.5px solid ${border}` }}>
+        {state === 'done'    && <IconCheck size={10} style={{ color: '#052e16' }} />}
+        {state === 'active'  && <IconSpinner size={10} style={{ color: '#451a03' }} />}
+        {state === 'error'   && <IconX size={9} style={{ color: '#fff' }} />}
+        {state === 'waiting' && <span style={dotNum} />}
+      </div>
+      {state === 'active' && <div style={pulseRing} />}
+    </div>
+  )
 }
 
 export default function ProgressTracker({ status, isGenerating }: Props) {
-  const statusText = () => {
-    if (!status) return isGenerating ? '准备中…' : ''
+  const headerText = () => {
+    if (!status) return isGenerating ? '初始化…' : ''
     switch (status.status) {
-      case 'pending': return '准备中…'
-      case 'generating': return `正在生成第 ${status.current_step} / ${status.total_steps} 段`
-      case 'merging' as string: return '正在合并视频…'
-      case 'done': return '全部完成 🎉'
-      case 'error': return '生成失败'
-      default: return ''
+      case 'pending':    return '初始化…'
+      case 'generating': return `片段 ${status.current_step} / ${status.total_steps}`
+      case 'done':       return '全部完成'
+      case 'error':      return '生成失败'
+      default:           return ''
     }
   }
+  const headerColor = status?.status === 'error'
+    ? 'var(--error)'
+    : status?.status === 'done'
+    ? 'var(--success)'
+    : 'var(--text-2)'
 
   return (
-    <div style={styles.wrapper}>
-      <p style={styles.label}>生成进度</p>
-      <div style={styles.statusBar}>
-        <span
-          style={{
-            ...styles.statusText,
-            color: status?.status === 'error' ? '#f87171'
-              : status?.status === 'done' ? '#34d399'
-              : '#f0a040',
-          }}
-        >
-          {statusText()}
-        </span>
+    <div style={s.wrapper}>
+      <div style={s.header}>
+        <span style={{ ...s.headerLabel, color: headerColor }}>{headerText()}</span>
+        {status && status.status !== 'error' && status.status !== 'done' && (
+          <div style={s.progressBar}>
+            <div
+              style={{
+                ...s.progressFill,
+                width: `${((status.completed_videos) / status.total_steps) * 100}%`,
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      <div style={styles.steps}>
+      <div style={s.steps}>
         {STEP_LABELS.map((label, i) => {
           const state = getStepState(i, status, isGenerating)
+          const isLast = i === STEP_LABELS.length - 1
           return (
-            <div key={i} style={styles.step}>
-              <div
-                style={{
-                  ...styles.stepIcon,
-                  background: STATE_COLORS[state],
-                  color: state === 'waiting' ? '#7060a0' : '#fff',
-                  animation: state === 'active' ? 'spin 1.2s linear infinite' : 'none',
-                }}
-              >
-                {STATE_ICONS[state]}
+            <div key={i} style={s.row}>
+              <div style={s.dotCol}>
+                <StepDot state={state} />
+                {!isLast && (
+                  <div style={{
+                    ...s.connector,
+                    background: state === 'done' ? 'var(--success)' : 'var(--border)',
+                  }} />
+                )}
               </div>
-              <div style={styles.stepInfo}>
-                <span style={styles.stepNum}>片段 {i + 1}</span>
-                <span
-                  style={{
-                    ...styles.stepLabel,
-                    color: state === 'waiting' ? '#5a4a70' : '#c0b0e0',
-                  }}
-                >
+              <div style={{ ...s.rowContent, paddingBottom: isLast ? 0 : 12 }}>
+                <span style={{
+                  ...s.stepLabel,
+                  color: state === 'waiting' ? 'var(--text-3)' : 'var(--text-1)',
+                }}>
                   {label}
                 </span>
+                <span style={{ ...s.stepSub, fontFamily: "'JetBrains Mono', monospace" }}>
+                  片段 {i + 1} · 6s
+                </span>
               </div>
-              {state === 'active' && (
-                <div style={styles.pulse} />
-              )}
             </div>
           )
         })}
       </div>
 
       {status?.status === 'error' && status.error && (
-        <div style={styles.errorDetail}>
-          <strong>错误详情：</strong>
-          <pre style={styles.errorPre}>{status.error}</pre>
-        </div>
-      )}
-
-      {status?.status === 'done' && (
-        <div style={styles.mergeRow}>
-          <div style={{ ...styles.stepIcon, background: '#34d399', color: '#fff' }}>✓</div>
-          <span style={styles.mergeLabel}>全部完成</span>
+        <div style={s.errorDetail}>
+          <pre style={s.errorPre}>{status.error}</pre>
         </div>
       )}
     </div>
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const dot: React.CSSProperties = {
+  width: 22,
+  height: 22,
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'background 0.3s, border-color 0.3s',
+  position: 'relative',
+  zIndex: 1,
+}
+
+const dotNum: React.CSSProperties = {
+  width: 5,
+  height: 5,
+  borderRadius: '50%',
+  background: 'var(--border)',
+}
+
+const pulseRing: React.CSSProperties = {
+  position: 'absolute',
+  inset: -3,
+  borderRadius: '50%',
+  border: '1.5px solid var(--accent)',
+  animation: 'pulse-ring 1.6s ease-out infinite',
+  pointerEvents: 'none',
+  zIndex: 0,
+}
+
+const s: Record<string, React.CSSProperties> = {
   wrapper: {
-    background: '#140e24',
-    border: '1px solid #2a1e42',
-    borderRadius: 14,
-    padding: '20px 24px',
-    marginBottom: 20,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '18px 20px',
   },
-  label: {
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
+  },
+  headerLabel: {
     fontSize: 13,
-    color: '#a090c0',
-    marginBottom: 12,
-    fontWeight: 500,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
-  statusBar: {
-    marginBottom: 16,
-  },
-  statusText: {
-    fontSize: 14,
     fontWeight: 600,
+    minWidth: 80,
+  },
+  progressBar: {
+    flex: 1,
+    height: 3,
+    background: 'var(--border)',
+    borderRadius: 9,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    background: 'var(--accent)',
+    borderRadius: 9,
+    transition: 'width 0.6s cubic-bezier(0.16,1,0.3,1)',
   },
   steps: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
   },
-  step: {
+  row: {
     display: 'flex',
-    alignItems: 'center',
     gap: 12,
-    position: 'relative',
+    alignItems: 'flex-start',
   },
-  stepIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
+  dotCol: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 13,
-    fontWeight: 700,
     flexShrink: 0,
-    transition: 'background 0.3s',
   },
-  stepInfo: {
+  connector: {
+    width: 1,
+    flex: 1,
+    minHeight: 12,
+    marginTop: 2,
+    marginBottom: 2,
+    transition: 'background 0.4s',
+  },
+  rowContent: {
     display: 'flex',
     flexDirection: 'column',
     gap: 1,
-  },
-  stepNum: {
-    fontSize: 11,
-    color: '#6050a0',
-    fontWeight: 600,
+    paddingTop: 2,
   },
   stepLabel: {
     fontSize: 13,
+    fontWeight: 500,
     transition: 'color 0.3s',
   },
-  pulse: {
-    position: 'absolute',
-    left: 0,
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    border: '2px solid #f0a040',
-    animation: 'pulse 1.5s ease-out infinite',
-    pointerEvents: 'none',
-  },
-  mergeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTop: '1px solid #2a1e42',
-  },
-  mergeLabel: {
-    fontSize: 13,
-    color: '#c0b0e0',
+  stepSub: {
+    fontSize: 10,
+    color: 'var(--text-3)',
+    letterSpacing: '0.02em',
   },
   errorDetail: {
     marginTop: 14,
-    padding: '10px 14px',
-    background: '#2a0e0e',
-    border: '1px solid #7f1d1d',
-    borderRadius: 8,
-    fontSize: 12,
-    color: '#fca5a5',
+    padding: '10px 12px',
+    background: 'var(--error-dim)',
+    border: '1px solid rgba(239,68,68,0.18)',
+    borderRadius: 'var(--radius)',
   },
   errorPre: {
-    marginTop: 6,
+    fontSize: 11,
+    color: 'var(--error)',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-all',
-    fontFamily: 'monospace',
-    fontSize: 11,
-    color: '#fca5a5',
-    lineHeight: 1.5,
+    fontFamily: "'JetBrains Mono', monospace",
+    lineHeight: 1.6,
+    opacity: 0.85,
   },
 }
