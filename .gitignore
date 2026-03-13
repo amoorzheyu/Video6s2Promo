@@ -1,0 +1,6 @@
+docs/
+.cursor/
+node_modules/
+.env
+temp/
+__pycache__/
