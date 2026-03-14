@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -10,6 +11,10 @@ import httpx
 from config import API_BASE_URL, API_KEY
 
 logger = logging.getLogger(__name__)
+
+# API 偶尔返回空 content 时，最多重试次数（不含首次）
+MAX_VIDEO_RETRIES = 2
+RETRY_DELAY_SECONDS = 5
 
 _SIZE_TO_ASPECT = {
     "1280x720":  "16:9",
@@ -158,37 +163,47 @@ async def generate_video(
         },
     }
 
-    # ── 调用生成接口 ───────────────────────────────────────────────
-    # trust_env=False：忽略系统代理，避免长连接后代理断线
-    # limits 禁用连接复用：每次请求建新连接，彻底防止复用僵尸连接
-    async with httpx.AsyncClient(
-        timeout=620.0,
-        trust_env=False,
-        limits=_LIMITS,
-    ) as client:
-        resp = await client.post(
-            f"{API_BASE_URL}/v1/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        resp.raise_for_status()
-        result = resp.json()
+    # ── 调用生成接口（空 content 时自动重试）────────────────────────
+    video_url = None
+    last_result = None
+    for attempt in range(1 + MAX_VIDEO_RETRIES):
+        async with httpx.AsyncClient(
+            timeout=620.0,
+            trust_env=False,
+            limits=_LIMITS,
+        ) as client:
+            resp = await client.post(
+                f"{API_BASE_URL}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+            result = resp.json()
 
-    logger.debug("生成响应（前 2000 字）: %s", json.dumps(result, ensure_ascii=False)[:2000])
+        last_result = result
+        logger.debug("生成响应（前 2000 字）: %s", json.dumps(result, ensure_ascii=False)[:2000])
+        video_url = _find_video_url(result)
 
-    # ── 提取视频 URL ───────────────────────────────────────────────
-    video_url = _find_video_url(result)
-
-    if not video_url:
-        # 打印完整响应结构，帮助排查 API 返回的实际字段
-        logger.error(
-            "无法提取视频 URL，完整响应：\n%s",
-            json.dumps(result, ensure_ascii=False, indent=2)[:3000],
-        )
-        raise RuntimeError(
-            "无法从响应中提取视频 URL，"
-            f"响应摘要：{json.dumps(result, ensure_ascii=False)[:500]}"
-        )
+        if video_url:
+            break
+        if attempt < MAX_VIDEO_RETRIES:
+            logger.warning(
+                "第 %d 次请求返回空视频 URL，%ds 后重试（剩余 %d 次）",
+                attempt + 1,
+                RETRY_DELAY_SECONDS,
+                MAX_VIDEO_RETRIES - attempt,
+            )
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
+        else:
+            logger.error(
+                "无法提取视频 URL（已重试 %d 次），完整响应：\n%s",
+                1 + MAX_VIDEO_RETRIES,
+                json.dumps(last_result, ensure_ascii=False, indent=2)[:3000],
+            )
+            raise RuntimeError(
+                "视频生成接口多次返回空内容，请稍后重试或检查 API 状态。"
+                f" 响应摘要：{json.dumps(last_result, ensure_ascii=False)[:500]}"
+            )
 
     if video_url.startswith("/"):
         video_url = f"{API_BASE_URL}{video_url}"
