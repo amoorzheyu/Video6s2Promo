@@ -6,4 +6,10 @@ export interface TaskStatus {
   completed_videos: number
   has_merged: boolean
   error: string | null
+  segment_titles?: string[]
+}
+
+export interface SegmentItem {
+  title: string
+  content: string
 }

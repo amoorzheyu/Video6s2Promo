@@ -2,14 +2,17 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import ImageUploader from './components/ImageUploader'
 import SizeSelector from './components/SizeSelector'
+import SegmentEditor from './components/SegmentEditor'
 import ProgressTracker from './components/ProgressTracker'
 import PreviewPanel from './components/PreviewPanel'
 import { IconFilm, IconPlay, IconReset, IconSpinner, IconWarning } from './Icons'
-import { TaskStatus } from './types'
+import type { TaskStatus, SegmentItem } from './types'
+import { DEFAULT_SEGMENTS } from './constants/defaultSegments'
 
 export default function App() {
   const [image, setImage] = useState<File | null>(null)
   const [size, setSize] = useState('1280x720')
+  const [segments, setSegments] = useState<SegmentItem[]>(() => [...DEFAULT_SEGMENTS])
   const [taskId, setTaskId] = useState<string | null>(null)
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -35,6 +38,7 @@ export default function App() {
     const formData = new FormData()
     formData.append('image', image)
     formData.append('size', size)
+    formData.append('segments', JSON.stringify(segments))
 
     try {
       const { data } = await axios.post<{ task_id: string }>('/api/generate', formData)
@@ -105,6 +109,11 @@ export default function App() {
         <aside style={s.sidebar}>
           <ImageUploader image={image} onImageChange={setImage} disabled={isGenerating} />
           <SizeSelector size={size} onSizeChange={setSize} disabled={isGenerating} />
+          <SegmentEditor
+            segments={segments}
+            onSegmentsChange={setSegments}
+            disabled={isGenerating}
+          />
 
           <div style={s.actions}>
             {error && (
@@ -137,13 +146,18 @@ export default function App() {
         <section style={s.content}>
           {(isGenerating || taskStatus) ? (
             <div style={s.activeArea}>
-              <ProgressTracker status={taskStatus} isGenerating={isGenerating} />
+              <ProgressTracker
+                status={taskStatus}
+                isGenerating={isGenerating}
+                segmentTitles={taskStatus?.segment_titles}
+              />
               {showPreview && (
                 <PreviewPanel
                   taskId={taskId!}
                   completedVideos={taskStatus!.completed_videos}
                   hasMerged={taskStatus!.has_merged}
                   isDone={isDone}
+                  segmentTitles={taskStatus?.segment_titles}
                 />
               )}
             </div>

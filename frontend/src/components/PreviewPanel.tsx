@@ -6,11 +6,19 @@ interface Props {
   completedVideos: number
   hasMerged: boolean
   isDone: boolean
+  segmentTitles?: string[]
 }
 
-export default function PreviewPanel({ taskId, completedVideos, isDone }: Props) {
+export default function PreviewPanel({
+  taskId,
+  completedVideos,
+  isDone,
+  segmentTitles,
+}: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const isMergedView = selected === null
+  const titles =
+    segmentTitles && segmentTitles.length >= 5 ? segmentTitles : null
 
   const videoUrl = isMergedView
     ? `/api/video/${taskId}/merged`
@@ -42,7 +50,9 @@ export default function PreviewPanel({ taskId, completedVideos, isDone }: Props)
               </>
             ) : (
               <>
-                <span style={s.playerTitle}>片段 {selected}</span>
+                <span style={s.playerTitle}>
+                  {titles ? titles[selected! - 1] : `片段 ${selected}`}
+                </span>
                 <span style={s.playerMeta}>6s</span>
               </>
             )}
@@ -69,7 +79,7 @@ export default function PreviewPanel({ taskId, completedVideos, isDone }: Props)
                 ...(!ready ? s.thumbPending : {}),
               }}
               onClick={() => ready && setSelected(active ? null : i)}
-              title={ready ? `片段 ${i}` : '等待生成'}
+              title={ready ? (titles ? titles[i - 1] : `片段 ${i}`) : '等待生成'}
             >
               {ready ? (
                 <video
@@ -84,7 +94,9 @@ export default function PreviewPanel({ taskId, completedVideos, isDone }: Props)
                 </div>
               )}
               <div style={s.thumbOverlay}>
-                <span style={s.thumbLabel}>{i}</span>
+                <span style={s.thumbLabel}>
+                  {titles ? titles[i - 1] : String(i)}
+                </span>
               </div>
             </div>
           )

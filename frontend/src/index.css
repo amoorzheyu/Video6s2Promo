@@ -125,6 +125,14 @@ button {
 }
 .btn-inline:hover { border-color: #3f3f46; color: var(--text-1); }
 
+/* ── Segment editor ── */
+.segment-editor input:focus-visible,
+.segment-editor textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* ── Animations ── */
 @keyframes spin {
   from { transform: rotate(0deg); }

@@ -4,9 +4,10 @@ import { IconCheck, IconSpinner, IconX } from '../Icons'
 interface Props {
   status: TaskStatus | null
   isGenerating: boolean
+  segmentTitles?: string[]
 }
 
-const STEP_LABELS = [
+const DEFAULT_STEP_LABELS = [
   '开场暖光',
   '光线折射',
   '俯视光圈',
@@ -56,7 +57,12 @@ function StepDot({ state }: { state: StepState }) {
   )
 }
 
-export default function ProgressTracker({ status, isGenerating }: Props) {
+export default function ProgressTracker({ status, isGenerating, segmentTitles }: Props) {
+  const stepLabels =
+    segmentTitles && segmentTitles.length >= 5
+      ? segmentTitles
+      : DEFAULT_STEP_LABELS
+
   const headerText = () => {
     if (!status) return isGenerating ? '初始化…' : ''
     switch (status.status) {
@@ -90,9 +96,9 @@ export default function ProgressTracker({ status, isGenerating }: Props) {
       </div>
 
       <div style={s.steps}>
-        {STEP_LABELS.map((label, i) => {
+        {stepLabels.map((label, i) => {
           const state = getStepState(i, status, isGenerating)
-          const isLast = i === STEP_LABELS.length - 1
+          const isLast = i === stepLabels.length - 1
           return (
             <div key={i} style={s.row}>
               <div style={s.dotCol}>

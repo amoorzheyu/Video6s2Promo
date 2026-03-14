@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 from pathlib import Path
@@ -25,14 +26,42 @@ VALID_SIZES = {"1280x720", "720x1280", "1792x1024", "1024x1792", "1024x1024"}
 
 # ── 启动生成任务 ───────────────────────────────────────────────────────────────
 
+def _parse_segments(segments_json: str | None) -> tuple[list[str], list[str]]:
+    """解析 segments JSON，返回 (titles, prompts)。无效或为空则返回 ([], [])。"""
+    if not segments_json or not segments_json.strip():
+        return [], []
+    try:
+        raw = json.loads(segments_json)
+        if not isinstance(raw, list) or len(raw) != 5:
+            return [], []
+        titles: list[str] = []
+        prompts: list[str] = []
+        for i, item in enumerate(raw):
+            if not isinstance(item, dict):
+                return [], []
+            title = item.get("title") or f"片段 {i + 1}"
+            content = item.get("content") or ""
+            titles.append(str(title).strip() or f"片段 {i + 1}")
+            prompts.append(str(content).strip())
+        if not all(prompts):
+            return [], []
+        return titles, prompts
+    except (json.JSONDecodeError, TypeError):
+        return [], []
+
+
 @router.post("/generate")
 async def start_generate(
     background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     size: str = Form(...),
+    segments: str | None = Form(None),
 ):
     if size not in VALID_SIZES:
         raise HTTPException(status_code=400, detail=f"无效尺寸，可用：{VALID_SIZES}")
+
+    titles, custom_prompts = _parse_segments(segments)
+    prompts_to_use = custom_prompts if custom_prompts else list(PROMPTS)
 
     task_id = str(uuid.uuid4())
     task_dir = TEMP_DIR / task_id
@@ -44,15 +73,25 @@ async def start_generate(
         await f.write(await image.read())
 
     create_task(task_id)
-    background_tasks.add_task(_run_generation, task_id, image_path, size)
+    task = get_task(task_id)
+    assert task is not None
+    if titles:
+        task.segment_titles = titles
+    else:
+        task.segment_titles = [f"片段 {i + 1}" for i in range(5)]
+    save_task(task)
+    background_tasks.add_task(_run_generation, task_id, image_path, size, prompts_to_use)
     return {"task_id": task_id}
 
 
 # ── 后台生成流程 ───────────────────────────────────────────────────────────────
 
-async def _run_generation(task_id: str, image_path: str, size: str) -> None:
+async def _run_generation(
+    task_id: str, image_path: str, size: str, prompts: list[str] | None = None
+) -> None:
     task = get_task(task_id)
     assert task is not None
+    prompt_list = prompts if prompts else PROMPTS
 
     task.status = "generating"
     save_task(task)
@@ -61,7 +100,7 @@ async def _run_generation(task_id: str, image_path: str, size: str) -> None:
     current_reference = image_path
 
     try:
-        for i, prompt in enumerate(PROMPTS, start=1):
+        for i, prompt in enumerate(prompt_list, start=1):
             task.current_step = i
             save_task(task)
 
@@ -80,7 +119,7 @@ async def _run_generation(task_id: str, image_path: str, size: str) -> None:
 
             save_task(task)
 
-            if i < len(PROMPTS):
+            if i < len(prompt_list):
                 frame_path = str(task_dir / f"frame_{i}.jpg")
                 await extract_last_frame(video_path, frame_path)
                 current_reference = frame_path
@@ -108,6 +147,7 @@ async def get_status(task_id: str):
         "completed_videos": len(task.video_paths),
         "has_merged": task.merged_path is not None,
         "error": task.error,
+        "segment_titles": task.segment_titles,
     }
 
 

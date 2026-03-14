@@ -10,3 +10,4 @@ class TaskState(BaseModel):
     video_paths: list[str] = Field(default_factory=list)
     merged_path: Optional[str] = None
     error: Optional[str] = None
+    segment_titles: list[str] = Field(default_factory=list)

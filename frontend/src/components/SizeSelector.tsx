@@ -46,7 +46,7 @@ export default function SizeSelector({ size, onSizeChange, disabled }: Props) {
                     ...s.ratioRect,
                     width: opt.w,
                     height: opt.h,
-                    borderColor: active ? 'var(--accent)' : 'var(--border-strong, #3f3f46)',
+                    borderColor: active ? 'var(--accent)' : 'transparent',
                     background: active ? 'var(--accent-dim)' : 'var(--elevated)',
                   }}
                 />
@@ -77,13 +77,17 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 12,
     background: 'transparent',
-    border: '1px solid transparent',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'transparent',
     borderRadius: 'var(--radius)',
     padding: '8px 10px',
     cursor: 'pointer',
     transition: 'background 0.15s, border-color 0.15s',
     textAlign: 'left',
     width: '100%',
+    outline: 'none',
+    boxShadow: 'none',
   },
   optionActive: {
     background: 'var(--elevated)',
@@ -103,7 +107,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   ratioRect: {
     borderRadius: 2,
-    border: '1.5px solid',
+    borderWidth: 1.5,
+    borderStyle: 'solid',
     transition: 'border-color 0.15s, background 0.15s',
   },
   info: {
