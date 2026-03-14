@@ -10,7 +10,7 @@ interface Props {
 
 const SEGMENT_NUMS = [1, 2, 3, 4, 5] as const
 const CONTENT_HELPER =
-  '整段原样发送。建议：先写【人物1】与【画面要求】，再按 0~1s、1~2s… 写分镜，正文中人物用【人物1】指代。'
+  '整段原样发送。建议：先写【产品】、【人物1】、【画面要求】，再按 0~1s、1~2s… 写分镜，正文中人物用【人物1】指代。'
 
 export default function SegmentEditor({ segments, onSegmentsChange, disabled }: Props) {
   const [collapsed, setCollapsed] = useState(true)
@@ -96,7 +96,7 @@ export default function SegmentEditor({ segments, onSegmentsChange, disabled }: 
                 id={`segment-content-${activeIndex}`}
                 value={current?.content ?? ''}
                 onChange={(e) => updateOne(activeIndex, 'content', e.target.value)}
-                placeholder={'【人物1】…\n【画面要求】…\n0~1s：…\n1~2s：…'}
+                placeholder={'【产品】…\n【人物1】…\n【画面要求】…\n0~1s：…\n1~2s：…'}
                 disabled={disabled}
                 rows={8}
                 style={s.textarea}
