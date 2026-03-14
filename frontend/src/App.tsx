@@ -18,7 +18,9 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [progressExpanded, setProgressExpanded] = useState(false)
+  const [segmentVersions, setSegmentVersions] = useState<Record<number, number>>({})
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const prevRegeneratingRef = useRef<number | null>(null)
 
   const stopPolling = () => {
     if (pollingRef.current !== null) {
@@ -49,9 +51,14 @@ export default function App() {
       pollingRef.current = setInterval(async () => {
         try {
           const { data: status } = await axios.get<TaskStatus>(`/api/status/${id}`)
+          const prev = prevRegeneratingRef.current
+          if (status.regenerating_segment != null) prevRegeneratingRef.current = status.regenerating_segment
+          else if (prev != null) {
+            setSegmentVersions((v) => ({ ...v, [prev]: (v[prev] ?? 0) + 1 }))
+            prevRegeneratingRef.current = null
+          }
           setTaskStatus(status)
           if (status.status === 'done' || status.status === 'error') {
-            stopPolling()
             setIsGenerating(false)
           }
         } catch {
@@ -74,6 +81,24 @@ export default function App() {
     setTaskStatus(null)
     setIsGenerating(false)
     setError(null)
+    setSegmentVersions({})
+    prevRegeneratingRef.current = null
+  }
+
+  const handleRegenerateSegment = async (segmentIndex: number) => {
+    if (!taskId) return
+    try {
+      const formData = new FormData()
+      formData.append('task_id', taskId)
+      formData.append('segment_index', String(segmentIndex))
+      await axios.post('/api/regenerate', formData)
+      setError(null)
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.detail ?? err.message)
+        : String(err)
+      setError(Array.isArray(msg) ? msg.join(', ') : msg)
+    }
   }
 
   const showPreview =
@@ -158,6 +183,9 @@ export default function App() {
                   hasMerged={taskStatus!.has_merged}
                   isDone={isDone}
                   segmentTitles={taskStatus?.segment_titles}
+                  regeneratingSegment={taskStatus?.regenerating_segment ?? null}
+                  onRegenerateSegment={handleRegenerateSegment}
+                  segmentVersions={segmentVersions}
                 />
               ) : (
                 <div style={s.previewPlaceholder}>

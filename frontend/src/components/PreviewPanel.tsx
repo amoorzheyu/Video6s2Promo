@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconArrowLeft } from '../Icons'
+import { IconArrowLeft, IconReset, IconSpinner } from '../Icons'
 
 interface Props {
   taskId: string
@@ -7,6 +7,9 @@ interface Props {
   hasMerged: boolean
   isDone: boolean
   segmentTitles?: string[]
+  regeneratingSegment?: number | null
+  onRegenerateSegment?: (index: number) => void
+  segmentVersions?: Record<number, number>
 }
 
 export default function PreviewPanel({
@@ -15,6 +18,9 @@ export default function PreviewPanel({
   hasMerged,
   isDone,
   segmentTitles,
+  regeneratingSegment = null,
+  onRegenerateSegment,
+  segmentVersions = {},
 }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const isMergedView = hasMerged && selected === null
@@ -22,11 +28,12 @@ export default function PreviewPanel({
   const titles =
     segmentTitles && segmentTitles.length >= 5 ? segmentTitles : null
 
+  const mergedVer = (segmentVersions[1] ?? 0) + (segmentVersions[2] ?? 0) + (segmentVersions[3] ?? 0) + (segmentVersions[4] ?? 0) + (segmentVersions[5] ?? 0)
   const videoUrl = isMergedView
-    ? `/api/video/${taskId}/merged`
-    : `/api/video/${taskId}/${effectiveSegment}`
+    ? `/api/video/${taskId}/merged?t=${mergedVer}`
+    : `/api/video/${taskId}/${effectiveSegment}?t=${segmentVersions[effectiveSegment] ?? 0}`
 
-  const playerKey = isMergedView ? `merged-${completedVideos}` : `seg-${effectiveSegment}`
+  const playerKey = isMergedView ? `merged-${completedVideos}-${mergedVer}` : `seg-${effectiveSegment}-${segmentVersions[effectiveSegment] ?? 0}`
   const duration = completedVideos * 6
 
   return (
@@ -70,6 +77,7 @@ export default function PreviewPanel({
         {Array.from({ length: 5 }, (_, i) => i + 1).map((i) => {
           const ready = i <= completedVideos
           const active = selected === i
+          const regenThis = regeneratingSegment === i
           return (
             <div
               key={i}
@@ -79,13 +87,14 @@ export default function PreviewPanel({
                 ...(!ready ? s.thumbPending : {}),
               }}
               onClick={() =>
-                ready && setSelected(active && hasMerged ? null : i)
+                ready && !regenThis && setSelected(active && hasMerged ? null : i)
               }
               title={ready ? (titles ? titles[i - 1] : `片段 ${i}`) : '等待生成'}
             >
               {ready ? (
                 <video
-                  src={`/api/video/${taskId}/${i}#t=0.5`}
+                  key={`${taskId}-${i}-${segmentVersions[i] ?? 0}`}
+                  src={`/api/video/${taskId}/${i}?t=${segmentVersions[i] ?? 0}#t=0.5`}
                   style={s.thumbVid}
                   muted
                   preload="metadata"
@@ -95,10 +104,30 @@ export default function PreviewPanel({
                   <span style={s.thumbN}>{i}</span>
                 </div>
               )}
+              {regenThis && (
+                <div style={s.regenOverlay}>
+                  <IconSpinner size={20} style={{ color: '#fff' }} />
+                  <span style={s.regenText}>重新生成中</span>
+                </div>
+              )}
               <div style={s.thumbOverlay}>
                 <span style={s.thumbLabel}>
                   {titles ? titles[i - 1] : String(i)}
                 </span>
+                {ready && isDone && onRegenerateSegment && !regenThis && (
+                  <button
+                    type="button"
+                    className="btn-inline"
+                    style={s.regenBtn}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRegenerateSegment(i)
+                    }}
+                    title={`重新生成片段 ${i}`}
+                  >
+                    <IconReset size={10} /> 重生成
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -215,14 +244,36 @@ const s: Record<string, React.CSSProperties> = {
     bottom: 0,
     left: 0,
     right: 0,
-    padding: '3px 0',
-    textAlign: 'center',
-    background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
+    padding: '4px 4px 2px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+    background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
   },
   thumbLabel: {
     fontSize: 10,
     fontWeight: 700,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     fontFamily: "'JetBrains Mono', monospace",
+  },
+  regenBtn: {
+    padding: '2px 6px',
+    fontSize: 10,
+  },
+  regenOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  regenText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: 600,
   },
 }

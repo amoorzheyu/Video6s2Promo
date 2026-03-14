@@ -79,6 +79,9 @@ async def start_generate(
         task.segment_titles = titles
     else:
         task.segment_titles = [f"片段 {i + 1}" for i in range(5)]
+    task.image_path = image_path
+    task.size = size
+    task.segment_prompts = list(prompts_to_use)
     save_task(task)
     background_tasks.add_task(_run_generation, task_id, image_path, size, prompts_to_use)
     return {"task_id": task_id}
@@ -134,6 +137,68 @@ async def _run_generation(
             save_task(task)
 
 
+# ── 单段重新生成 ───────────────────────────────────────────────────────────────
+
+@router.post("/regenerate")
+async def regenerate_segment(
+    background_tasks: BackgroundTasks,
+    task_id: str = Form(...),
+    segment_index: str = Form(...),
+):
+    task = _require_task(task_id)
+    try:
+        idx = int(segment_index)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="segment_index 须为 1–5 的整数")
+    if idx < 1 or idx > 5:
+        raise HTTPException(status_code=400, detail="segment_index 须为 1–5")
+    if task.status != "done":
+        raise HTTPException(status_code=400, detail="仅可在任务完成后重新生成单段")
+    if not task.image_path or not Path(task.image_path).exists():
+        raise HTTPException(status_code=400, detail="任务参考图已失效，无法重新生成")
+    if not task.segment_prompts or len(task.segment_prompts) < 5:
+        raise HTTPException(status_code=400, detail="任务缺少片段文案，无法重新生成")
+    if task.regenerating_segment is not None:
+        raise HTTPException(status_code=409, detail="当前已有片段正在重新生成中")
+
+    task.regenerating_segment = idx
+    save_task(task)
+    background_tasks.add_task(_run_regenerate, task_id, idx)
+    return {"ok": True}
+
+
+async def _run_regenerate(task_id: str, segment_index: int) -> None:
+    task = get_task(task_id)
+    if task is None or not task.image_path or len(task.segment_prompts) < segment_index:
+        return
+    task_dir = TEMP_DIR / task_id
+    path = str(task_dir / f"video_{segment_index}.mp4")
+    try:
+        await generate_video(
+            task.segment_prompts[segment_index - 1],
+            task.size,
+            task.image_path,
+            path,
+        )
+        t = get_task(task_id)
+        if t is None:
+            return
+        t.video_paths[segment_index - 1] = path
+        if t.merged_path and all(t.video_paths):
+            merged_path = str(task_dir / "merged.mp4")
+            await merge_videos([p for p in t.video_paths if p], merged_path)
+            t.merged_path = merged_path
+        t.regenerating_segment = None
+        save_task(t)
+    except Exception as exc:
+        logger.error("重新生成片段 %s 失败: %s", segment_index, exc, exc_info=True)
+        t = get_task(task_id)
+        if t is not None:
+            t.regenerating_segment = None
+            t.error = f"重新生成片段 {segment_index} 失败: {exc}"
+            save_task(t)
+
+
 # ── 查询进度 ───────────────────────────────────────────────────────────────────
 
 def _completed_count(video_paths: list[str | None]) -> int:
@@ -152,6 +217,7 @@ async def get_status(task_id: str):
         "has_merged": task.merged_path is not None,
         "error": task.error,
         "segment_titles": task.segment_titles,
+        "regenerating_segment": task.regenerating_segment,
     }
 
 

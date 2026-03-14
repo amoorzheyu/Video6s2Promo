@@ -11,3 +11,7 @@ class TaskState(BaseModel):
     merged_path: Optional[str] = None
     error: Optional[str] = None
     segment_titles: list[str] = Field(default_factory=list)
+    image_path: Optional[str] = None
+    size: str = "1280x720"
+    segment_prompts: list[str] = Field(default_factory=list)
+    regenerating_segment: Optional[int] = None  # 1-5，正在重新生成该段时非空
