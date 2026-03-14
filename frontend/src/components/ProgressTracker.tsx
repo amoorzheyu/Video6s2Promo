@@ -20,13 +20,14 @@ type StepState = 'done' | 'active' | 'waiting' | 'error'
 function getStepState(i: number, status: TaskStatus | null, isGenerating: boolean): StepState {
   if (!status && !isGenerating) return 'waiting'
   if (status?.status === 'error') {
-    if (i < status.current_step - 1) return 'done'
-    if (i === status.current_step - 1) return 'error'
+    const done = status.completed_videos ?? 0
+    if (i < done) return 'done'
+    if (i === done) return 'error'
     return 'waiting'
   }
   const done = status?.completed_videos ?? 0
   if (i < done) return 'done'
-  if (i === (status?.current_step ?? 0) - 1 && isGenerating) return 'active'
+  if (isGenerating && i === done) return 'active'
   return 'waiting'
 }
 
@@ -67,7 +68,7 @@ export default function ProgressTracker({ status, isGenerating, segmentTitles }:
     if (!status) return isGenerating ? '初始化…' : ''
     switch (status.status) {
       case 'pending':    return '初始化…'
-      case 'generating': return `片段 ${status.current_step} / ${status.total_steps}`
+      case 'generating': return `已完成 ${status.completed_videos} / ${status.total_steps}`
       case 'done':       return '全部完成'
       case 'error':      return '生成失败'
       default:           return ''

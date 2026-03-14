@@ -75,7 +75,10 @@ export default function App() {
     setError(null)
   }
 
-  const showPreview = taskId !== null && taskStatus !== null && taskStatus.has_merged
+  const showPreview =
+    taskId !== null &&
+    taskStatus !== null &&
+    (taskStatus.completed_videos > 0 || taskStatus.has_merged)
   const isDone = taskStatus?.status === 'done'
   const hasError = taskStatus?.status === 'error'
 
@@ -97,7 +100,7 @@ export default function App() {
           {isGenerating && (
             <span style={s.generatingBadge}>
               <IconSpinner size={12} />
-              生成中 {taskStatus?.current_step ?? 0} / 5
+              生成中 {taskStatus?.completed_videos ?? 0} / 5
             </span>
           )}
         </div>
@@ -172,7 +175,7 @@ export default function App() {
 
 function EmptyState() {
   const steps = [
-    { n: '01', text: '上传产品或场景参考图' },
+    { n: '01', text: '上传产品图（每段均以此为参考）' },
     { n: '02', text: '选择画面比例' },
     { n: '03', text: '一键生成 5 段 6s 视频' },
     { n: '04', text: '实时预览合并成片' },

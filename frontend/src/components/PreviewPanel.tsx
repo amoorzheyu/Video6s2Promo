@@ -12,19 +12,21 @@ interface Props {
 export default function PreviewPanel({
   taskId,
   completedVideos,
+  hasMerged,
   isDone,
   segmentTitles,
 }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
-  const isMergedView = selected === null
+  const isMergedView = hasMerged && selected === null
+  const effectiveSegment = selected ?? 1
   const titles =
     segmentTitles && segmentTitles.length >= 5 ? segmentTitles : null
 
   const videoUrl = isMergedView
     ? `/api/video/${taskId}/merged`
-    : `/api/video/${taskId}/${selected}`
+    : `/api/video/${taskId}/${effectiveSegment}`
 
-  const playerKey = isMergedView ? `merged-${completedVideos}` : `seg-${selected}`
+  const playerKey = isMergedView ? `merged-${completedVideos}` : `seg-${effectiveSegment}`
   const duration = completedVideos * 6
 
   return (
@@ -34,8 +36,6 @@ export default function PreviewPanel({
         <video
           key={playerKey}
           controls
-          autoPlay
-          muted
           style={s.video}
           src={videoUrl}
         />
@@ -51,13 +51,13 @@ export default function PreviewPanel({
             ) : (
               <>
                 <span style={s.playerTitle}>
-                  {titles ? titles[selected! - 1] : `片段 ${selected}`}
+                  {titles ? titles[effectiveSegment - 1] : `片段 ${effectiveSegment}`}
                 </span>
                 <span style={s.playerMeta}>6s</span>
               </>
             )}
           </div>
-          {!isMergedView && (
+          {hasMerged && !isMergedView && (
             <button className="btn-inline" onClick={() => setSelected(null)}>
               <IconArrowLeft size={11} /> 合并视图
             </button>
@@ -78,7 +78,9 @@ export default function PreviewPanel({
                 ...(active ? s.thumbActive : {}),
                 ...(!ready ? s.thumbPending : {}),
               }}
-              onClick={() => ready && setSelected(active ? null : i)}
+              onClick={() =>
+                ready && setSelected(active && hasMerged ? null : i)
+              }
               title={ready ? (titles ? titles[i - 1] : `片段 ${i}`) : '等待生成'}
             >
               {ready ? (

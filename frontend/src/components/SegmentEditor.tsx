@@ -56,13 +56,15 @@ export default function SegmentEditor({ segments, onSegmentsChange, disabled }: 
                   />
                 </div>
                 <div style={s.field}>
-                  <span style={s.label}>内容（生成描述）</span>
+                  <span style={s.label}>
+                    内容（整段原样发送，可自由编辑。建议按脚本写：0~1s、1~2s…；人物用代号：先写【人物1】xxx，后文一律用【人物1】引用；并可加【画面要求】…）
+                  </span>
                   <textarea
                     value={segments[i]?.content ?? ''}
                     onChange={(e) => updateOne(i, 'content', e.target.value)}
-                    placeholder="描述该段画面..."
+                    placeholder="建议格式：\n【人物1】…\n【画面要求】…\n0~1s：…\n1~2s：…\n…\n（正文提到该人物一律用【人物1】）"
                     disabled={disabled}
-                    rows={2}
+                    rows={4}
                     style={s.textarea}
                   />
                 </div>

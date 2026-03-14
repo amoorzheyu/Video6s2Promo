@@ -151,7 +151,7 @@ async def generate_video(
                 "role": "user",
                 "content": [
                     {"type": "image_url", "image_url": {"url": data_uri}},
-                    {"type": "text", "text": prompt},
+                    {"type": "text", "text": prompt.strip()},
                 ],
             }
         ],

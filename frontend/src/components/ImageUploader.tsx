@@ -33,7 +33,8 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
 
   return (
     <div style={s.wrapper}>
-      <p className="label">参考图片</p>
+      <p className="label">产品图片（参考图）</p>
+      <p style={s.sublabel}>每段视频均使用此产品图作为参考，请上传清晰产品图</p>
 
       <div
         style={{
@@ -58,7 +59,7 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
                   inputRef.current!.value = ''
                   onImageChange(null as unknown as File)
                 }}
-                title="移除图片"
+                title="移除产品图"
               >
                 <IconX size={12} />
               </button>
@@ -101,6 +102,12 @@ export default function ImageUploader({ image, onImageChange, disabled }: Props)
 const s: Record<string, React.CSSProperties> = {
   wrapper: {
     marginBottom: 24,
+  },
+  sublabel: {
+    fontSize: 11,
+    color: 'var(--text-3)',
+    marginTop: 2,
+    marginBottom: 10,
   },
   zone: {
     position: 'relative',
