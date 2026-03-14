@@ -125,7 +125,23 @@ button {
 }
 .btn-inline:hover { border-color: #3f3f46; color: var(--text-1); }
 
+.progress-toggle:hover { background: var(--elevated); color: var(--text-1); }
+
 /* ── Segment editor ── */
+.segment-editor-toggle:hover:not(:disabled) {
+  background: var(--elevated);
+  color: var(--text-1);
+}
+.segment-editor-toggle:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.segment-editor [role="tab"]:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text-2);
+}
+.segment-editor [role="tab"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
 .segment-editor input:focus-visible,
 .segment-editor textarea:focus-visible {
   outline: none;

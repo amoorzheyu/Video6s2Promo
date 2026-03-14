@@ -8,10 +8,13 @@ interface Props {
   disabled?: boolean
 }
 
-const SEGMENT_NUMS = [1, 2, 3, 4, 5]
+const SEGMENT_NUMS = [1, 2, 3, 4, 5] as const
+const CONTENT_HELPER =
+  '整段原样发送。建议：先写【人物1】与【画面要求】，再按 0~1s、1~2s… 写分镜，正文中人物用【人物1】指代。'
 
 export default function SegmentEditor({ segments, onSegmentsChange, disabled }: Props) {
   const [collapsed, setCollapsed] = useState(true)
+  const [activeIndex, setActiveIndex] = useState(0)
 
   const updateOne = (index: number, field: 'title' | 'content', value: string) => {
     const next = segments.map((s, i) =>
@@ -20,10 +23,13 @@ export default function SegmentEditor({ segments, onSegmentsChange, disabled }: 
     onSegmentsChange(next)
   }
 
+  const current = segments[activeIndex]
+
   return (
     <div className="segment-editor" style={s.wrapper}>
       <button
         type="button"
+        className="segment-editor-toggle"
         style={{ ...s.toggle, ...(disabled ? { cursor: 'not-allowed', opacity: 0.7 } : {}) }}
         onClick={() => !disabled && setCollapsed((c) => !c)}
         disabled={disabled}
@@ -39,38 +45,64 @@ export default function SegmentEditor({ segments, onSegmentsChange, disabled }: 
       </button>
 
       {!collapsed && (
-        <div style={s.list}>
-          {SEGMENT_NUMS.map((n, i) => (
-            <div key={n} style={s.block}>
-              <label style={s.blockLabel}>片段 {n}</label>
-              <div style={s.fields}>
-                <div style={s.field}>
-                  <span style={s.label}>标题</span>
-                  <input
-                    type="text"
-                    value={segments[i]?.title ?? ''}
-                    onChange={(e) => updateOne(i, 'title', e.target.value)}
-                    placeholder={`片段 ${n}`}
-                    disabled={disabled}
-                    style={s.input}
-                  />
-                </div>
-                <div style={s.field}>
-                  <span style={s.label}>
-                    内容（整段原样发送，可自由编辑。建议按脚本写：0~1s、1~2s…；人物用代号：先写【人物1】xxx，后文一律用【人物1】引用；并可加【画面要求】…）
-                  </span>
-                  <textarea
-                    value={segments[i]?.content ?? ''}
-                    onChange={(e) => updateOne(i, 'content', e.target.value)}
-                    placeholder="建议格式：\n【人物1】…\n【画面要求】…\n0~1s：…\n1~2s：…\n…\n（正文提到该人物一律用【人物1】）"
-                    disabled={disabled}
-                    rows={4}
-                    style={s.textarea}
-                  />
-                </div>
-              </div>
+        <div style={s.body}>
+          <div style={s.tabList} role="tablist" aria-label="选择片段">
+            {SEGMENT_NUMS.map((n, i) => (
+              <button
+                key={n}
+                type="button"
+                role="tab"
+                aria-selected={activeIndex === i}
+                aria-controls={`segment-panel-${n}`}
+                id={`segment-tab-${n}`}
+                style={{
+                  ...s.tab,
+                  ...(activeIndex === i ? s.tabActive : {}),
+                }}
+                onClick={() => setActiveIndex(i)}
+                disabled={disabled}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <div
+            id={`segment-panel-${activeIndex + 1}`}
+            role="tabpanel"
+            aria-labelledby={`segment-tab-${activeIndex + 1}`}
+            style={s.panel}
+          >
+            <div style={s.fieldBlock}>
+              <label htmlFor={`segment-title-${activeIndex}`} style={s.label}>
+                标题
+              </label>
+              <input
+                id={`segment-title-${activeIndex}`}
+                type="text"
+                value={current?.title ?? ''}
+                onChange={(e) => updateOne(activeIndex, 'title', e.target.value)}
+                placeholder={`片段 ${activeIndex + 1}`}
+                disabled={disabled}
+                style={s.input}
+              />
             </div>
-          ))}
+            <div style={s.fieldBlock}>
+              <label htmlFor={`segment-content-${activeIndex}`} style={s.label}>
+                内容
+              </label>
+              <p style={s.helper}>{CONTENT_HELPER}</p>
+              <textarea
+                id={`segment-content-${activeIndex}`}
+                value={current?.content ?? ''}
+                onChange={(e) => updateOne(activeIndex, 'content', e.target.value)}
+                placeholder={'【人物1】…\n【画面要求】…\n0~1s：…\n1~2s：…'}
+                disabled={disabled}
+                rows={8}
+                style={s.textarea}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -79,7 +111,9 @@ export default function SegmentEditor({ segments, onSegmentsChange, disabled }: 
 
 const s: Record<string, React.CSSProperties> = {
   wrapper: {
-    border: '1px solid var(--border)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--border)',
     borderRadius: 'var(--radius)',
     background: 'var(--surface)',
     overflow: 'hidden',
@@ -97,7 +131,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     color: 'var(--text-1)',
-    transition: 'background 0.15s',
+    transition: 'background 0.15s, color 0.15s',
   },
   toggleLabel: {
     flex: 1,
@@ -109,65 +143,91 @@ const s: Record<string, React.CSSProperties> = {
     color: 'var(--text-3)',
     fontFamily: "'JetBrains Mono', monospace",
   },
-  list: {
+  body: {
     borderTop: '1px solid var(--border)',
-    padding: '8px 12px 12px',
+    display: 'grid',
+    gridTemplateRows: 'auto 1fr',
+    gap: 0,
+    minHeight: 320,
+    maxHeight: 420,
+  },
+  tabList: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 2,
+    padding: '10px 12px 0',
+    background: 'var(--surface)',
+  },
+  tab: {
+    padding: '8px 4px',
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: "'JetBrains Mono', monospace",
+    color: 'var(--text-3)',
+    background: 'var(--elevated)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s, background 0.2s, color 0.2s',
+  },
+  tabActive: {
+    color: 'var(--accent)',
+    background: 'var(--accent-dim)',
+    borderColor: 'var(--border-accent)',
+  },
+  panel: {
+    padding: '12px 12px 14px',
+    overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
-    maxHeight: 320,
-    overflowY: 'auto',
   },
-  block: {
+  fieldBlock: {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
-  },
-  blockLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: 'var(--text-3)',
-    fontFamily: "'JetBrains Mono', monospace",
-    letterSpacing: '0.02em',
-  },
-  fields: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
   },
   label: {
     fontSize: 11,
-    fontWeight: 500,
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    color: 'var(--text-2)',
+  },
+  helper: {
+    fontSize: 10,
+    lineHeight: 1.4,
     color: 'var(--text-3)',
+    margin: 0,
   },
   input: {
-    padding: '6px 10px',
+    padding: '8px 10px',
     fontSize: 13,
     color: 'var(--text-1)',
     background: 'var(--elevated)',
-    border: '1px solid var(--border)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--border)',
     borderRadius: 'var(--radius-sm)',
     fontFamily: 'inherit',
     outline: 'none',
-    transition: 'border-color 0.15s',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
   },
   textarea: {
-    padding: '8px 10px',
+    padding: '10px',
     fontSize: 12,
     lineHeight: 1.5,
     color: 'var(--text-1)',
     background: 'var(--elevated)',
-    border: '1px solid var(--border)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'var(--border)',
     borderRadius: 'var(--radius-sm)',
-    fontFamily: 'inherit',
+    fontFamily: "'JetBrains Mono', monospace",
     resize: 'vertical',
-    minHeight: 52,
+    minHeight: 140,
     outline: 'none',
-    transition: 'border-color 0.15s',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
   },
 }

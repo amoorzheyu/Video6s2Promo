@@ -27,7 +27,8 @@ function getStepState(i: number, status: TaskStatus | null, isGenerating: boolea
   }
   const done = status?.completed_videos ?? 0
   if (i < done) return 'done'
-  if (isGenerating && i === done) return 'active'
+  // 五段并行生成：未完成的全部显示为「生成中」
+  if (isGenerating && i >= done) return 'active'
   return 'waiting'
 }
 

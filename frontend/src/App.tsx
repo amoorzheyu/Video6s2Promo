@@ -17,6 +17,7 @@ export default function App() {
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [progressExpanded, setProgressExpanded] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const stopPolling = () => {
@@ -149,12 +150,8 @@ export default function App() {
         <section style={s.content}>
           {(isGenerating || taskStatus) ? (
             <div style={s.activeArea}>
-              <ProgressTracker
-                status={taskStatus}
-                isGenerating={isGenerating}
-                segmentTitles={taskStatus?.segment_titles}
-              />
-              {showPreview && (
+              {/* 主区域：视频预览（未就绪时显示占位） */}
+              {showPreview ? (
                 <PreviewPanel
                   taskId={taskId!}
                   completedVideos={taskStatus!.completed_videos}
@@ -162,7 +159,54 @@ export default function App() {
                   isDone={isDone}
                   segmentTitles={taskStatus?.segment_titles}
                 />
+              ) : (
+                <div style={s.previewPlaceholder}>
+                  <p style={s.placeholderTitle}>视频预览将在此显示</p>
+                  <p style={s.placeholderSub}>
+                    {isGenerating
+                      ? `正在生成 5 段视频… 已完成 ${taskStatus?.completed_videos ?? 0} / 5 段`
+                      : '生成完成后可在此预览与下载'}
+                  </p>
+                  {taskStatus && (isGenerating || taskStatus.status === 'generating') && (
+                    <div style={s.placeholderBar}>
+                      <div
+                        style={{
+                          ...s.placeholderBarFill,
+                          width: `${((taskStatus.completed_videos ?? 0) / (taskStatus.total_steps ?? 5)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
+              {/* 次要：进度列表（可折叠，默认收起） */}
+              <div style={s.progressSection}>
+                <button
+                  type="button"
+                  className="progress-toggle"
+                  style={s.progressToggle}
+                  onClick={() => setProgressExpanded((e) => !e)}
+                  aria-expanded={progressExpanded}
+                >
+                  <span style={s.progressToggleLabel}>
+                    {taskStatus?.status === 'done'
+                      ? '全部完成'
+                      : taskStatus?.status === 'error'
+                        ? '生成失败'
+                        : `进度 ${taskStatus?.completed_videos ?? 0} / 5`}
+                  </span>
+                  <span style={s.progressToggleArrow}>{progressExpanded ? '▼' : '▶'}</span>
+                </button>
+                {progressExpanded && (
+                  <div style={{ borderTop: '1px solid var(--border)' }}>
+                    <ProgressTracker
+                      status={taskStatus}
+                      isGenerating={isGenerating}
+                      segmentTitles={taskStatus?.segment_titles}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <EmptyState />
@@ -298,7 +342,73 @@ const s: Record<string, React.CSSProperties> = {
   activeArea: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
+    gap: 20,
+  },
+  previewPlaceholder: {
+    background: 'var(--surface)',
+    border: '1px dashed var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '48px 24px',
+    textAlign: 'center',
+    minHeight: 280,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  placeholderTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: 'var(--text-2)',
+    margin: 0,
+  },
+  placeholderSub: {
+    fontSize: 13,
+    color: 'var(--text-3)',
+    margin: 0,
+  },
+  placeholderBar: {
+    width: '100%',
+    maxWidth: 240,
+    height: 4,
+    background: 'var(--border)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  placeholderBarFill: {
+    height: '100%',
+    background: 'var(--accent)',
+    borderRadius: 4,
+    transition: 'width 0.5s ease',
+  },
+  progressSection: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    overflow: 'hidden',
+    background: 'var(--surface)',
+  },
+  progressToggle: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 14px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--text-2)',
+    transition: 'background 0.15s',
+  },
+  progressToggleLabel: {},
+  progressToggleArrow: {
+    fontSize: 10,
+    color: 'var(--text-3)',
+    fontFamily: 'inherit',
   },
   errorBox: {
     display: 'flex',
