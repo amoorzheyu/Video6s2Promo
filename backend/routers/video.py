@@ -158,10 +158,11 @@ async def regenerate_segment(
         raise HTTPException(status_code=400, detail="任务参考图已失效，无法重新生成")
     if not task.segment_prompts or len(task.segment_prompts) < 5:
         raise HTTPException(status_code=400, detail="任务缺少片段文案，无法重新生成")
-    if task.regenerating_segment is not None:
-        raise HTTPException(status_code=409, detail="当前已有片段正在重新生成中")
+    # 允许多个片段并行重新生成，仅阻止同一片段重复请求
+    if idx in task.regenerating_segments:
+        raise HTTPException(status_code=409, detail=f"片段 {idx} 已在重新生成中")
 
-    task.regenerating_segment = idx
+    task.regenerating_segments.append(idx)
     save_task(task)
     background_tasks.add_task(_run_regenerate, task_id, idx)
     return {"ok": True}
@@ -188,13 +189,15 @@ async def _run_regenerate(task_id: str, segment_index: int) -> None:
             merged_path = str(task_dir / "merged.mp4")
             await merge_videos([p for p in t.video_paths if p], merged_path)
             t.merged_path = merged_path
-        t.regenerating_segment = None
+        if segment_index in t.regenerating_segments:
+            t.regenerating_segments.remove(segment_index)
         save_task(t)
     except Exception as exc:
         logger.error("重新生成片段 %s 失败: %s", segment_index, exc, exc_info=True)
         t = get_task(task_id)
         if t is not None:
-            t.regenerating_segment = None
+            if segment_index in t.regenerating_segments:
+                t.regenerating_segments.remove(segment_index)
             t.error = f"重新生成片段 {segment_index} 失败: {exc}"
             save_task(t)
 
@@ -217,7 +220,7 @@ async def get_status(task_id: str):
         "has_merged": task.merged_path is not None,
         "error": task.error,
         "segment_titles": task.segment_titles,
-        "regenerating_segment": task.regenerating_segment,
+        "regenerating_segments": task.regenerating_segments,
     }
 
 

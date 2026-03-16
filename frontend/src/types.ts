@@ -7,7 +7,7 @@ export interface TaskStatus {
   has_merged: boolean
   error: string | null
   segment_titles?: string[]
-  regenerating_segment?: number | null
+  regenerating_segments?: number[]
 }
 
 export interface SegmentItem {

@@ -7,7 +7,7 @@ interface Props {
   hasMerged: boolean
   isDone: boolean
   segmentTitles?: string[]
-  regeneratingSegment?: number | null
+  regeneratingSegments?: number[]
   onRegenerateSegment?: (index: number) => void
   segmentVersions?: Record<number, number>
 }
@@ -18,7 +18,7 @@ export default function PreviewPanel({
   hasMerged,
   isDone,
   segmentTitles,
-  regeneratingSegment = null,
+  regeneratingSegments = [],
   onRegenerateSegment,
   segmentVersions = {},
 }: Props) {
@@ -77,7 +77,7 @@ export default function PreviewPanel({
         {Array.from({ length: 5 }, (_, i) => i + 1).map((i) => {
           const ready = i <= completedVideos
           const active = selected === i
-          const regenThis = regeneratingSegment === i
+          const regenThis = regeneratingSegments.includes(i)
           return (
             <div
               key={i}

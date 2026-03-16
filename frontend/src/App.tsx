@@ -20,7 +20,7 @@ export default function App() {
   const [progressExpanded, setProgressExpanded] = useState(false)
   const [segmentVersions, setSegmentVersions] = useState<Record<number, number>>({})
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const prevRegeneratingRef = useRef<number | null>(null)
+  const prevRegeneratingRef = useRef<Set<number>>(new Set())
 
   const stopPolling = () => {
     if (pollingRef.current !== null) {
@@ -37,6 +37,7 @@ export default function App() {
     setTaskStatus(null)
     setTaskId(null)
     setIsGenerating(true)
+    setProgressExpanded(true)
 
     const formData = new FormData()
     formData.append('image', image)
@@ -51,12 +52,22 @@ export default function App() {
       pollingRef.current = setInterval(async () => {
         try {
           const { data: status } = await axios.get<TaskStatus>(`/api/status/${id}`)
-          const prev = prevRegeneratingRef.current
-          if (status.regenerating_segment != null) prevRegeneratingRef.current = status.regenerating_segment
-          else if (prev != null) {
-            setSegmentVersions((v) => ({ ...v, [prev]: (v[prev] ?? 0) + 1 }))
-            prevRegeneratingRef.current = null
+          const currentSet = new Set(status.regenerating_segments ?? [])
+          const prevSet = prevRegeneratingRef.current
+          const finished: number[] = []
+          prevSet.forEach((idx) => {
+            if (!currentSet.has(idx)) finished.push(idx)
+          })
+          if (finished.length) {
+            setSegmentVersions((v) => {
+              const next = { ...v }
+              finished.forEach((idx) => {
+                next[idx] = (next[idx] ?? 0) + 1
+              })
+              return next
+            })
           }
+          prevRegeneratingRef.current = currentSet
           setTaskStatus(status)
           if (status.status === 'done' || status.status === 'error') {
             setIsGenerating(false)
@@ -82,7 +93,8 @@ export default function App() {
     setIsGenerating(false)
     setError(null)
     setSegmentVersions({})
-    prevRegeneratingRef.current = null
+    prevRegeneratingRef.current = new Set()
+    setProgressExpanded(false)
   }
 
   const handleRegenerateSegment = async (segmentIndex: number) => {
@@ -183,7 +195,7 @@ export default function App() {
                   hasMerged={taskStatus!.has_merged}
                   isDone={isDone}
                   segmentTitles={taskStatus?.segment_titles}
-                  regeneratingSegment={taskStatus?.regenerating_segment ?? null}
+                  regeneratingSegments={taskStatus?.regenerating_segments ?? []}
                   onRegenerateSegment={handleRegenerateSegment}
                   segmentVersions={segmentVersions}
                 />

@@ -14,4 +14,4 @@ class TaskState(BaseModel):
     image_path: Optional[str] = None
     size: str = "1280x720"
     segment_prompts: list[str] = Field(default_factory=list)
-    regenerating_segment: Optional[int] = None  # 1-5，正在重新生成该段时非空
+    regenerating_segments: list[int] = Field(default_factory=list)  # 正在重新生成的片段索引列表（1-5）
